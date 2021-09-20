@@ -20,11 +20,18 @@
       </li> -->
       <li>
           <button class="dropdown-item"
-                  @click="navigate('/accounts/hardware-wallet')">
+                  @click="navigate('/accounts/ledger-hardware-wallet')">
               <div class="head-option">
                 <HardwareIcon class="hardware-icon" />
               </div>
-              Hardware
+              Ledger
+          </button>
+          <button class="dropdown-item"
+                @click="navigate('/accounts/lattice-hardware-wallet')">
+            <div class="head-option">
+              <HardwareIcon class="hardware-icon" />
+            </div>
+            Lattice
           </button>
       </li>
     </ul>

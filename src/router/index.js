@@ -26,7 +26,8 @@ import Permission from '@/views/Permission.vue'
 import WalletAssets from '@/views/Wallet/WalletAssets.vue'
 import WalletActivity from '@/views/Wallet/WalletActivity.vue'
 import AssetList from '@/views/AssetList.vue'
-import HardwareWallet from '@/views/Accounts/HardwareWallet/HardwareWallet.vue'
+import LatticeHardwareWallet from '@/views/Accounts/LatticeHardwareWallet/LatticeHardwareWallet.vue'
+import LedgerHardwareWallet from '@/views/Accounts/LedgerHardwareWallet/LedgerHardwareWallet.vue'
 import CreateAccount from '@/views/Accounts/Create.vue'
 import ImportAccount from '@/views/Accounts/Import.vue'
 
@@ -121,8 +122,13 @@ const routes = [
     props: true
   },
   {
-    path: '/accounts/hardware-wallet',
-    component: HardwareWallet,
+    path: '/accounts/lattice-hardware-wallet',
+    component: LatticeHardwareWallet,
+    props: true
+  },
+  {
+    path: '/accounts/ledger-hardware-wallet',
+    component: LedgerHardwareWallet,
     props: true
   },
   {

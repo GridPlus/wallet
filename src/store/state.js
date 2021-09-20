@@ -49,5 +49,12 @@ export default {
     askedTimes: 0,
     notAskAgain: false
   },
-  watsNewModalVersion: null
+  watsNewModalVersion: null,
+
+  latticeData: {
+    creds: {
+      deviceID: null,
+      password: null
+    }
+  }
 }
