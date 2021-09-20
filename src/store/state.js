@@ -50,5 +50,10 @@ export default {
     notAskAgain: false
   },
   watsNewModalVersion: null,
-  enabledChains: {}
+  enabledChains: {
+  },
+  lattice: {
+    clientInfo: null,
+    asset: null
+  }
 }
