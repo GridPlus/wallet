@@ -318,5 +318,17 @@ export default {
 
       Vue.set(state.accounts[walletId][network], index, updatedAccount)
     }
+  },
+  SET_LATTICE_CLIENT_INFO (state, { clientInfo }) {
+    state.lattice.clientInfo = clientInfo
+  },
+  SET_LATTICE_ASSET (state, { asset }) {
+    state.lattice.asset = asset
+  },
+  CLEAR_LATTICE_DATA (state) {
+    state.lattice = {
+      clientInfo: null,
+      asset: null
+    }
   }
 }
