@@ -5,43 +5,46 @@
         Add Lattice Accounts
       </span>
     </NavBar>
-    <GetDeviceInfo  v-if="currentStep === 'getInfo'"
-                    :loading="loading"
-                    @on-get-info="setDeviceInfo"
+    <GetLatticeClient v-if="currentStep === 'getLatticeClient'"
+                      @on-lattice-client="setLatticeClient"
+    />
+    <PairWithLattice  v-else-if="currentStep === 'pairWithLattice'"
+                      :client="client"
+                      @on-pairing-success="handlePairingSuccess"
     />
   </div>
 </template>
 
 <script>
 import NavBar from '@/components/NavBar'
-import GetDeviceInfo from './GetDeviceInfo'
+import GetLatticeClient from './GetLatticeClient'
+import PairWithLattice from './PairWithLattice'
 import { getAssetIcon } from '@/utils/asset'
 export default {
+  props: ['client'],
   components: {
     NavBar,
-    GetDeviceInfo
+    GetLatticeClient,
+    PairWithLattice
   },
   data () {
     return {
-      currentStep: 'getInfo',
-      deviceInfo: {},
-      loading: false,
-      selectedAsset: null,
-      accounts: [],
-      selectedAccounts: {},
-      ledgerError: null,
-      ledgerPage: 0,
-      selectedWalletType: null
+      currentStep: 'getLatticeClient'
     }
   },
   methods: {
     getAssetIcon,
-    closeBridgeModal () {
-      this.loading = false
+    async setLatticeClient (data) {
+      const { client, isPaired } = data
+      if (!isPaired) {
+        this.client = client
+        this.currentStep = 'pairWithLattice'
+      } else {
+        console.log('we are paired!')
+      }
     },
-    async setDeviceInfo (deviceInfo) {
-      this.deviceInfo = deviceInfo
-      this.currentStep = 'connect'
+    async handlePairingSuccess () {
+      console.log('paired!')
     }
   }
 }
