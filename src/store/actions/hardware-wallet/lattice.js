@@ -4,6 +4,7 @@ export const setLatticeClientInfo = async ({ commit }, { clientInfo }) => {
 }
 
 export const setLatticeAsset = async ({ commit }, { asset }) => {
+  console.log('setting lattice asset', asset)
   commit('SET_LATTICE_ASSET', { asset })
 }
 
