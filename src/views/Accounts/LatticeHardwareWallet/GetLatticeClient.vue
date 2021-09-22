@@ -14,13 +14,7 @@
       </div>
     </div>
     <div class="wrapper_bottom">
-      <div class="button-group">
-        <button
-          class="btn btn-light btn-outline-primary btn-lg"
-          @click="cancelConnect"
-        >
-          Cancel
-        </button>
+      <!-- <div class="button-group"> -->
         <button
           class="btn btn-primary btn-lg btn-icon"
           @click="handleInput"
@@ -29,14 +23,13 @@
           <SpinnerIcon class="btn-loading" v-if="loading" />
           <template v-else>Connect</template>
         </button>
-      </div>
+      <!-- </div> -->
     </div>
   </div>
 </template>
 <script>
 
 import SpinnerIcon from '@/assets/icons/spinner.svg'
-import { Client } from 'gridplus-sdk'
 
 export default {
   props: ['inputDeviceID', 'inputPassword', 'loading', 'errMsg', 'client'],
@@ -44,30 +37,15 @@ export default {
     SpinnerIcon
   },
   methods: {
-    cancelConnect () {
-      this.loading = false
-      if (this.client) {
-        // Send a message with an empty pairing code to cancel the request
-        this.client.pair('', () => {})
-      }
-    },
     handleInput () {
       try {
         this.loading = true
-        const ReactCrypto = require('gridplus-react-crypto').default
-        const crypto = new ReactCrypto()
-        this.client = new Client({
+        const clientInfo = {
           name: 'Liquality',
-          crypto: crypto,
-          privKey: crypto.createHash('sha256').update(`${this.inputDeviceID}${this.inputPassword}liquality`).digest()
-        })
-        this.client.connect(this.inputDeviceID, (err, isPaired) => {
-          if (err) {
-            this.errMsg = err.message
-            return
-          }
-          this.$emit('on-lattice-client', { client: this.client, isPaired })
-        })
+          deviceID: this.inputDeviceID,
+          password: this.inputPassword
+        }
+        this.$emit('on-client-info', { clientInfo })
       } catch (err) {
         this.errMsg = err.message
       }

@@ -265,7 +265,17 @@ export default {
   SET_WATS_NEW_MODAL_VERSION (state, { version }) {
     state.watsNewModalVersion = version
   },
-  SET_LATTICE_CREDS (state, { deviceID, password }) {
-    state.latticeData.latticeCreds = { deviceID, password }
+  SET_LATTICE_CLIENT_INFO (state, { clientInfo }) {
+    state.lattice.clientInfo = clientInfo
+  },
+  SET_LATTICE_ASSET (state, { asset }) {
+    state.lattice.asset = asset
+  },
+  CLEAR_LATTICE_DATA (state) {
+    state.lattice = {
+      client: null,
+      isPaired: false,
+      asset: null
+    }
   }
 }

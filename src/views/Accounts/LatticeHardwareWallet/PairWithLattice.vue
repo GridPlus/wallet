@@ -79,7 +79,10 @@ export default {
     cancel () {
       this.loading = false
       this.inputCode = ''
-      this.client.pair('', () => {})
+      if (this.client) {
+        this.client.pair('', () => {})
+      }
+      this.$emit('on-remove-client')
     }
   }
 }

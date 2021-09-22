@@ -51,10 +51,8 @@ export default {
   },
   watsNewModalVersion: null,
 
-  latticeData: {
-    creds: {
-      deviceID: null,
-      password: null
-    }
+  lattice: {
+    clientInfo: null,
+    asset: null
   }
 }
