@@ -123,7 +123,7 @@ export default {
           }
           // If we have already selected an asset, check for the account
           this.currentStep = 'setupFinished'
-          this.debugLatticeMsg({ msg: `ugh cmon man... ${this.currentStep}`})
+          this.debugLatticeMsg({ msg: `ugh cmon man... ${this.currentStep}` })
         })
       } catch (err) {
         this.debugLatticeMsg({ msg: `error connecting: ${err.message}` })
@@ -135,7 +135,7 @@ export default {
     },
 
     async _createOrUpdateAccount () {
-      this.latticeDebugMsg({ msg: 'createorupdateaccount'})
+      this.latticeDebugMsg({ msg: 'createorupdateaccount' })
       if (!this.latticeAsset() || !this.client) {
         return
       }
@@ -147,7 +147,7 @@ export default {
       this.latticeDebugMsg({ msg: walletUID })
       this.latticeDebugMsg({ msg: this.accounts() })
       // Fetch the first address for each supported account type and update state
-      const options = LATTICE_OPTIONS.filter((x) => { return x.name === this.selectedAsset.name})
+      const options = LATTICE_OPTIONS.filter((x) => { return x.name === this.selectedAsset.name })
       if (options.length < 1) {
         return
       }
@@ -202,12 +202,12 @@ export default {
         const req = { startPath: pathIndices, n: 1, skipCache: true }
         this.latticeDebugMsg({ msg: 'getting addresses' })
         this.client.getAddresses(req, (err, res) => {
-          this.latticeDebugMsg({ msg: 'got addresses'})
-          this.latticeDebugMsg({msg: res})
+          this.latticeDebugMsg({ msg: 'got addresses' })
+          this.latticeDebugMsg({ msg: res })
           if (err) {
             return reject(new Error(err.message))
           }
-          this.latticeDebugMsg({ msg: res[0]})
+          this.latticeDebugMsg({ msg: res[0] })
           return resolve(res[0])
         })
       })
@@ -232,7 +232,7 @@ export default {
       return
     }
     await this._connect(clientInfo)
-    this.latticeDebugMsg({ msg: `currentStep: ${this.currentStep}`})
+    this.latticeDebugMsg({ msg: `currentStep: ${this.currentStep}` })
     // if (this.currentStep === 'setupFinished') {
     //   await this._createOrUpdateAccount()
     // }
