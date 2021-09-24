@@ -47,7 +47,9 @@ export default {
         this.loading = false
         if (err) {
           this.errMsg = 'Failed to re-connect.'
+          return
         }
+        this.$emit('on-refresh-connection')
       })
     },
     removeConnection () {
