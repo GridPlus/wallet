@@ -14,21 +14,34 @@
     </div>
     <div class="wrapper_bottom">
       <div class="button-group">
+        <button
+          class="btn btn-light btn-outline-primary btn-lg"
+          @click="removeConnection"
+          :disabled="loading"
+        >
+          Remove
+        </button>
+        <button
+          class="btn btn-light btn-outline-primary btn-lg"
+          @click="refreshConnection"
+          :disabled="loading"
+        >
+          <SpinnerIcon class="btn-loading" v-if="loading" />
+          <template>Refresh</template>
+        </button>
+       </div>
+       <div>
+         <center>
           <button
-            class="btn btn-light btn-outline-primary btn-lg"
-            @click="removeConnection"
-          >
-            Remove Connection
-          </button>
-          <button
-            class="btn btn-primary btn-lg btn-icon"
-            @click="refreshConnection"
+            class="btn btn-primary btn-lg btn-icon btn-full"
+            @click="goToWallet"
             :disabled="loading"
           >
             <SpinnerIcon class="btn-loading" v-if="loading" />
-            <template>Refresh</template>
+            <template>Go to Wallet</template>
           </button>
-        </div>
+        </center>
+      </div>
     </div>
   </div>
 </template>
@@ -54,10 +67,17 @@ export default {
     },
     removeConnection () {
       this.$emit('on-remove-client')
+    },
+    goToWallet () {
+      this.$emit('on-go-to-wallet')
     }
   }
 }
 </script>
 
 <style lang="scss">
+ .btn-full {
+   margin: 20px;
+   width: 70%;
+ }
 </style>

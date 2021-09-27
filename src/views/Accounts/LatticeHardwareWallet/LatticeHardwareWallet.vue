@@ -25,6 +25,7 @@
                       :client="client"
                       @on-remove-client="handleRemoveClient"
                       @on-refresh-connection="handleRefreshConnection"
+                      @on-go-to-wallet="handleGoToWallet"
     />
   </div>
 </template>
@@ -111,6 +112,9 @@ export default {
     async handleRefreshConnection () {
       await this._connect(this.latticeClientInfo())
       await this._createAccountIfNeeded()
+    },
+    async handleGoToWallet () {
+      this.$router.replace('/wallet')
     },
 
     // Internal state-altering functions
