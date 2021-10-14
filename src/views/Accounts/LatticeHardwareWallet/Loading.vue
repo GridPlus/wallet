@@ -15,7 +15,8 @@ import SpinnerIcon from '@/assets/icons/spinner.svg'
 export default {
   components: {
     SpinnerIcon
-  }
+  },
+  props: ["loading"],
 }
 </script>
 
