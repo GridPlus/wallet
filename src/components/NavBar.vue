@@ -51,6 +51,10 @@
           <SettingsIcon />
           Settings
         </li>
+        <li id="lattice" @click="lattice">
+          <LedgerIcon />
+          Lattice<sup>1</sup>
+        </li>
         <li id="ledger" @click="ledger">
           <LedgerIcon />
           Ledger
@@ -176,6 +180,10 @@ export default {
       })
       this.showMenuList = false
       this.$router.replace('/accounts/hardware-wallet')
+    },
+    lattice () {
+      this.showMenuList = false
+      this.$router.replace('/accounts/lattice-hardware-wallet')
     },
     hideMenu () {
       this.showMenuList = false
