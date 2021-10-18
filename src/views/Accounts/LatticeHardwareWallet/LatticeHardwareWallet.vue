@@ -164,7 +164,11 @@ export default {
       return new Promise((resolve, reject) => {
         if (!this.latticeAsset() || !this.client) {
           return reject(new Error('Connection not set up.'))
+        } else if (this._hasExistingAccount()) {
+          this.latticeDebugMsg('has existing account. exiting')
+          return resolve()
         }
+        this.latticeDebugMsg(`createAccountIfNeeded. this.latticeAsset: ${JSON.stringify(this.latticeAsset())}`)
         // Get options and config needed to create the account
         const options = this._getWalletOptions()
         const walletUID = this._getCurrentWalletUID()
@@ -187,8 +191,7 @@ export default {
         // If this is a new account, get the first address and save the data
         var startPath = getDerivationPath(options.chain, this.activeNetwork, 0, options.type)
         // TODO: This is temporary. Need to properly force segwit elsewhere...
-        startPath = "84'/0'/0'/0/0"
-        console.log(options)
+        startPath = "49'/0'/0'/0/0"
         this.loading = true
         this._getAddress(startPath)
           .then((firstAddress) => {
@@ -212,10 +215,10 @@ export default {
               name: `Lattice ${options.name}`,
               type: options.type
             }
-            this.latticeDebugMsg('creating account')
+            this.latticeDebugMsg(`going to create account: ${JSON.stringify(account)}`)
             // If this wallet UID *does* exist in state, update it
             this.createAccount({
-              walletId: this.activeWalletId,
+              walletId: walletUID,
               network: this.activeNetwork,
               account
             })
@@ -254,12 +257,11 @@ export default {
         path.split('/').forEach((i) => {
           const hardIdx = i.indexOf('\'')
           const isHard = hardIdx > -1
-          const iNum = isHard ? i.slice(0, i) : i
+          const iNum = isHard ? i.slice(0, hardIdx) : i
           if (!isNaN(Number(iNum))) {
             pathIndices.push(isHard ? Number(iNum) + 0x80000000 : Number(iNum))
           }
         })
-        console.log(pathIndices)
         const req = { startPath: pathIndices, n: 1, skipCache: true }
         this.client.getAddresses(req, (err, res) => {
           if (err) {
@@ -303,6 +305,18 @@ export default {
         })
       }
       return existingAccounts
+    },
+    // Determine if we have an account already for the currently selected asset and walletUID
+    _hasExistingAccount () {
+      const currentAsset = this.latticeAsset()
+      const walletAccounts = this._getExistingAccounts()
+      let match = false
+      walletAccounts.forEach((account) => {
+        if (account.chain === currentAsset.chain && account.name.indexOf(currentAsset.name) > -1) {
+          match = true
+        }
+      })
+      return match
     },
     // Get the options associated with this account (asset, network, etc)
     _getWalletOptions () {
