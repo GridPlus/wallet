@@ -135,7 +135,7 @@ const routes = [
     props: true
   },
   {
-    path: '/accounts/ledger-hardware-wallet',
+    path: '/accounts/hardware-wallet',
     component: LedgerHardwareWallet,
     props: true
   },
