@@ -309,6 +309,7 @@ export default {
       let match = false
       walletAccounts.forEach((account) => {
         if (account.chain === currentAsset.chain && account.name.indexOf(currentAsset.name) > -1) {
+          this.latticeDebugMsg(`Found account: ${JSON.stringify(account)}`)
           match = true
         }
       })

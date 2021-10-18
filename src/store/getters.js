@@ -73,13 +73,13 @@ export default {
 
       if (useCache) {
         const cachedClient = clientCache[cacheKey]
+        console.log('CACHED CLIENT', cachedClient)
         if (cachedClient) return cachedClient
       }
 
       const { mnemonic } = state.wallets.find(w => w.id === walletId)
       const client = createClient(asset, network, mnemonic, _accountType, derivationPath)
       clientCache[cacheKey] = client
-
       return client
     }
   },
@@ -195,6 +195,7 @@ export default {
       }).sort((a, b) => {
         if (
           a.type.includes('ledger') ||
+          a.type.includes('lattice') ||
           a.chain < b.chain
         ) {
           return -1

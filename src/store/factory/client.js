@@ -43,6 +43,7 @@ import buildConfig from '../../build.config'
 import { ChainNetworks } from '@/utils/networks'
 
 function createBtcClient (network, mnemonic, accountType, derivationPath) {
+  console.log('CREATING BTC CLIENT', accountType, derivationPath)
   const isTestnet = network === 'testnet'
   const bitcoinNetwork = ChainNetworks.bitcoin[network]
   const esploraApi = buildConfig.exploraApis[network]
@@ -66,6 +67,15 @@ function createBtcClient (network, mnemonic, accountType, derivationPath) {
       bitcoinLedgerApp
     )
     btcClient.addProvider(ledger)
+  } else if (accountType.includes('bitcoin_lattice')) {
+    // THIS ERRORS OUT BECAUSE THE LOGIC IN THE DEFAULT PROVIDER IS TO DERIVE ADDRESSES
+    // FROM THE MNEMONIC. IF YOU PASS AN EMPTY MNEMONIC, IT WILL THROW ERRORS.
+    // WITHOUT THIS ELSE-IF BLOCK, IT WILL ADD A DEFAULT PROVIDER FOR OUR LATTICE ACCOUNT
+    // AND IT WILL END UP ADDING THE FIRST DERIVED ADDRESS FROM THE MNEMONIC.
+    // WE NEED TO CREATE OUR OWN LATTICE WALLET PROVIDER WRAPPER TO DERIVE USING THE LATTICE.
+    btcClient.addProvider(new BitcoinJsWalletProvider(
+      { network: bitcoinNetwork, mnemonic: null, baseDerivationPath: derivationPath }
+    ))
   } else {
     btcClient.addProvider(new BitcoinJsWalletProvider(
       { network: bitcoinNetwork, mnemonic, baseDerivationPath: derivationPath }

@@ -201,7 +201,6 @@ export default {
     if (!state.accounts[walletId][network]) {
       Vue.set(state.accounts[walletId], network, [])
     }
-
     state.accounts[walletId][network].push(account)
   },
   UPDATE_ACCOUNT (state, { network, walletId, account }) {
@@ -253,15 +252,16 @@ export default {
       const index = accounts.findIndex(
         (a) => a.id === accountId
       )
-
+      console.log('updating addrs', index, accountId, accounts[index].addresses)
       if (index >= 0) {
-        const _account = accounts[index]
-        const updatedAccount = {
-          ..._account,
-          addresses: [...new Set(addresses)]
-        }
-
-        Vue.set(state.accounts[walletId][network], index, updatedAccount)
+        // const _account = accounts[index]
+        // const updatedAccount = {
+        //   ..._account,
+        //   addresses: [...new Set(addresses)]
+        // }
+        // THERE IS A BUG SOMEWHERE THAT ENDS UP CALLING THIS TO ADD
+        // THE DEFAULT WALLET BTC ADDRESS TO THE LATTICE WALLET BTC ADDRESSES
+        // Vue.set(state.accounts[walletId][network], index, updatedAccount)
       }
     }
   },

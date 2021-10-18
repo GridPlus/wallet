@@ -4,7 +4,9 @@ import { ChainId } from '@liquality/cryptoassets'
 
 export const getUnusedAddresses = async ({ state, commit, getters }, { network, walletId, assets, accountId }) => {
   return Bluebird.map(assets, async asset => {
+    console.log('GETTING UNUSED ADDRESSES', walletId, accountId)
     const accounts = state.accounts[walletId]?.[network]
+    console.log('ACCOUNTS', accounts)
     const index = accounts.findIndex(a => a.id === accountId)
     if (index >= 0 && asset) {
       const account = accounts[index]
@@ -17,6 +19,8 @@ export const getUnusedAddresses = async ({ state, commit, getters }, { network, 
         }
       ).wallet.getUnusedAddress()
 
+      console.log('RESULT', result)
+      console.log('ACCOUNT', account)
       const address = isEthereumChain(asset) ? result.address.replace('0x', '') : result.address // TODO: Should not require removing 0x
       let updatedAddresses = []
       if (account.chain === ChainId.Bitcoin) {
