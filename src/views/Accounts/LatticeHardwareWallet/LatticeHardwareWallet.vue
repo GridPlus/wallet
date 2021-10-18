@@ -6,6 +6,7 @@
       </span>
     </NavBar>
     <Loading          v-if="loading"
+                      @on-cancel-loading="handleRemoveClient"
     />
     <GetLatticeClient v-else-if="!latticeClientInfo()"
                       @on-client-info="handleClientInfo"
@@ -97,11 +98,13 @@ export default {
       this.currentStep = 'selectLatticeAsset'
     },
     async handleRemoveClient () {
-      this.client = null
       this.currentStep = null
-      await this.clearLatticeData()
+      // Remove saved accounts from the store
       await this._removeSavedAccounts()
-      // TODO: change active wallet to default one
+      // Clear all state data associated with the Lattice and its client
+      await this.clearLatticeData()
+      // Clear the client locally
+      this.client = null
     },
     async handleConfirmLatticeAsset () {
       this.setLatticeAsset({ asset: this.selectedAsset })
@@ -113,7 +116,12 @@ export default {
       this.selectedAsset = asset
     },
     async handleRefreshConnection () {
+      // Remove saved accounts from the store
+      await this._removeSavedAccounts()
+      // Setup a new client and re-connect to the Lattice
+      // We should already be paired so this should be automatic
       await this._connect(this.latticeClientInfo())
+      // Recreate the account
       await this._createAccountIfNeeded()
     },
     async handleGoToWallet () {
@@ -168,7 +176,6 @@ export default {
           this.latticeDebugMsg('has existing account. exiting')
           return resolve()
         }
-        this.latticeDebugMsg(`createAccountIfNeeded. this.latticeAsset: ${JSON.stringify(this.latticeAsset())}`)
         // Get options and config needed to create the account
         const options = this._getWalletOptions()
         const walletUID = this._getCurrentWalletUID()
@@ -189,9 +196,7 @@ export default {
         */
         // --------------------------------------------------------------------------------
         // If this is a new account, get the first address and save the data
-        var startPath = getDerivationPath(options.chain, this.activeNetwork, 0, options.type)
-        // TODO: This is temporary. Need to properly force segwit elsewhere...
-        startPath = "49'/0'/0'/0/0"
+        const startPath = getDerivationPath(options.chain, this.activeNetwork, 0, options.type)
         this.loading = true
         this._getAddress(startPath)
           .then((firstAddress) => {
@@ -203,10 +208,10 @@ export default {
               addresses: [firstAddress],
               alias: '',
               assets: [
-                'BTC'
+                options.name
               ],
               balances: {
-                BTC: 0
+                [options.name]: 0
               },
               chain: options.chain,
               color: getNextAccountColor(options.chain, 1),
@@ -215,19 +220,13 @@ export default {
               name: `Lattice ${options.name}`,
               type: options.type
             }
-            this.latticeDebugMsg(`going to create account: ${JSON.stringify(account)}`)
             // If this wallet UID *does* exist in state, update it
+            // NOTE: Switching wallets isn't necessary. Ledger appends its accounts to active wallet.
             this.createAccount({
-              walletId: walletUID,
+              walletId: this.activeWalletId,
               network: this.activeNetwork,
               account
             })
-
-            // TODO: Switching wallets isn't necessary. Ledger appends its accounts to active wallet.
-            /*
-            // Change the active wallet UID
-            this.changeActiveWalletId({ walletId: walletUID })
-            */
 
             // TODO: Fetch Account Balances
             /*
@@ -274,11 +273,12 @@ export default {
       })
     },
     async _removeSavedAccounts () {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         const existingAccounts = this._getExistingAccounts()
         existingAccounts.forEach((account) => {
           this.removeAccount({ walletId: account.walletId, id: account.id, network: this.activeNetwork })
         })
+        return resolve()
       })
     },
     // Get all accounts associated with this wallet, network, and asset
@@ -287,15 +287,11 @@ export default {
       if (!this.client) {
         return []
       }
-      const walletUID = this._getCurrentWalletUID()
-      if (!walletUID) {
-        return []
-      }
       const options = this._getWalletOptions()
       if (!options) {
         return []
       }
-      const existingWallet = this.accounts()[walletUID]
+      const existingWallet = this.accounts()[this.activeWalletId]
       const existingAccounts = []
       if (existingWallet && Object.keys(existingWallet[this.activeNetwork]).length > 0) {
         existingWallet[this.activeNetwork].forEach((account) => {

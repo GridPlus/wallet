@@ -4,7 +4,7 @@ export const createAccount = async (
   { commit, dispatch }, payload) => {
   const { walletId, network, account } = payload
   const _account = accountCreator({ network, walletId, account })
-
+  console.log('creating account', _account)
   commit('CREATE_ACCOUNT', { network, walletId, account: _account })
 
   await dispatch('getUnusedAddresses', {

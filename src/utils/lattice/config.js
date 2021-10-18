@@ -1,8 +1,8 @@
 export const LATTICE_BITCOIN_OPTIONS = [
   {
-    name: 'bitcoin_lattice_nagive_segwit',
+    name: 'bitcoin_lattice_wrapped_segwit',
     label: 'Segwit',
-    addressType: 'bech32'
+    addressType: 'p2sh-segwit'
   },
   {
     name: 'bitcoin_lattice_legacy',
@@ -22,7 +22,7 @@ export const LATTICE_OPTIONS = [
     name: 'BTC',
     label: 'BTC',
     types: [
-      'bitcoin_lattice_nagive_segwit',
+      'bitcoin_lattice_wrapped_segwit',
       'bitcoin_lattice_legacy'
     ],
     chain: 'bitcoin'

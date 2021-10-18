@@ -7,6 +7,16 @@
         <SpinnerIcon class="btn-loading" v-if="loading" />
       </div>
     </div>
+    <div class="wrapper_bottom">
+      <center>
+        <button
+          class="btn btn-light btn-lg btn-icon btn-full"
+          @click="cancel"
+        >
+          <template>Cancel</template>
+        </button>
+      </center>
+    </div>
   </div>
 </template>
 <script>
@@ -16,7 +26,12 @@ export default {
   components: {
     SpinnerIcon
   },
-  props: ['loading']
+  props: ['loading'],
+  methods: {
+    cancel () {
+      this.$emit('on-cancel-loading')
+    }
+  }
 }
 </script>
 
