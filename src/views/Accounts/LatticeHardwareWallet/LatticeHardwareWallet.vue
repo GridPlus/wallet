@@ -71,13 +71,16 @@ export default {
   },
   methods: {
     ...mapActions([
-      'changeActiveWalletId',
+      // 'changeActiveWalletId',
       'createAccount',
       'clearLatticeData',
       'setLatticeClientInfo',
       'setLatticeAsset',
       'latticeDebugMsg',
-      'removeAccount'
+      'removeAccount',
+      'updateAccountBalance'
+      // ^^^ Even though 'updateAccountBlaance' should add the 'assets' + 'balances' keys to 'account'
+      // (thus, fixing missing UI) it is not being called currently. See `_createAccountIfNeeded`.
     ]),
     ...mapState({
       latticeClientInfo: state => state.lattice.clientInfo,
@@ -165,34 +168,72 @@ export default {
         // Get options and config needed to create the account
         const options = this._getWalletOptions()
         const walletUID = this._getCurrentWalletUID()
-        /// Check on the existing wallet accounts to see if this account has already been
+        // --------------------------------------------------------------------------------
+        // TODO: Ledger appends its accounts to the active wallet. We should do the same.
+        //       None the less, omitting this check is not a permanent fix.
+        // --------------------------------------------------------------------------------
+        //
+        // Check on the existing wallet accounts to see if this account has already been
         // saved to state (if so we will return early)
+        //
+        /*
         const existingAccounts = this._getExistingAccounts()
         if (existingAccounts.length > 0) {
           this.changeActiveWalletId({ walletId: walletUID })
           return resolve()
         }
+        */
+        // --------------------------------------------------------------------------------
         // If this is a new account, get the first address and save the data
-        const startPath = getDerivationPath(options.chain, this.activeNetwork, 0, options.type)
+        var startPath = getDerivationPath(options.chain, this.activeNetwork, 0, options.type)
+        // TODO: This is temporary. Need to properly force segwit elsewhere...
+        startPath = "84'/0'/0'/0/0"
+        console.log(options)
         this.loading = true
         this._getAddress(startPath)
           .then((firstAddress) => {
             this.loading = false
             // If this is an unrecognized address, re-create the account with it as the only address
+            // ALSO:
+            // 'assets' + 'balances' should be added via: `updateAccountBalance`.
             const account = {
-              name: `Lattice ${options.name}`,
-              alias: '',
-              chain: options.chain,
-              index: FIXED_ACCOUNT_IDX,
               addresses: [firstAddress],
-              type: options.types,
-              color: getNextAccountColor(options.chain, 1)
+              alias: '',
+              assets: [
+                'BTC'
+              ],
+              balances: {
+                BTC: 0
+              },
+              chain: options.chain,
+              color: getNextAccountColor(options.chain, 1),
+              id: walletUID,
+              index: FIXED_ACCOUNT_IDX,
+              name: `Lattice ${options.name}`,
+              type: options.type
             }
             this.latticeDebugMsg('creating account')
             // If this wallet UID *does* exist in state, update it
-            this.createAccount({ walletId: walletUID, network: this.activeNetwork, account })
+            this.createAccount({
+              walletId: this.activeWalletId,
+              network: this.activeNetwork,
+              account
+            })
+
+            // TODO: Switching wallets isn't necessary. Ledger appends its accounts to active wallet.
+            /*
             // Change the active wallet UID
             this.changeActiveWalletId({ walletId: walletUID })
+            */
+
+            // TODO: Fetch Account Balances
+            /*
+            this.updateAccountBalance({
+              network: this.activeNetwork,
+              walletId: this.activeWalletId,
+              accountId: walletUID
+            })
+            */
             return resolve()
           })
           .catch((err) => {
@@ -218,6 +259,7 @@ export default {
             pathIndices.push(isHard ? Number(iNum) + 0x80000000 : Number(iNum))
           }
         })
+        console.log(pathIndices)
         const req = { startPath: pathIndices, n: 1, skipCache: true }
         this.client.getAddresses(req, (err, res) => {
           if (err) {

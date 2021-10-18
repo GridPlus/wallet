@@ -16,7 +16,7 @@ export default {
   components: {
     SpinnerIcon
   },
-  props: ["loading"],
+  props: ['loading']
 }
 </script>
 
