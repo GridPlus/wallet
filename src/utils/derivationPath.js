@@ -3,24 +3,20 @@ import { ChainNetworks } from '@/utils/networks'
 import { BTC_ADDRESS_TYPE_TO_PREFIX } from '@/utils/address'
 import { bitcoin } from '@liquality/types'
 import { LEDGER_BITCOIN_OPTIONS } from '@/utils/ledger-bridge-provider'
-// import { LATTICE_BITCOIN_OPTIONS } from '@/utils/lattice'
+import { LATTICE_BITCOIN_OPTIONS } from '@/utils/lattice'
 
 const getBitcoinDerivationPath = (accountType, coinType, index) => {
   if (accountType.includes('ledger')) {
     const option = LEDGER_BITCOIN_OPTIONS.find(o => o.name === accountType)
     const { addressType } = option
     return `${BTC_ADDRESS_TYPE_TO_PREFIX[addressType]}'/${coinType}'/${index}'`
-  } else {
-    return `${BTC_ADDRESS_TYPE_TO_PREFIX[bitcoin.AddressType.BECH32]}'/${coinType}'/${index}'`
-  }
-  // TODO: Investigate callsite (in 'LatticeHardwareWallet')
-  /*
-   else if (accountType.includes('lattice')) {
+  } else if (accountType.includes('lattice')) {
     const option = LATTICE_BITCOIN_OPTIONS.find(o => o.name === accountType)
     const { addressType } = option
     return `${BTC_ADDRESS_TYPE_TO_PREFIX[addressType]}'/${coinType}'/${index}'`
+  } else {
+    return `${BTC_ADDRESS_TYPE_TO_PREFIX[bitcoin.AddressType.BECH32]}'/${coinType}'/${index}'`
   }
-  */
 }
 
 const getEthereumBasedDerivationPath = (coinType, index) => `m/44'/${coinType}'/${index}'/0/0`
