@@ -2,7 +2,7 @@
   <div class="wrapper">
     <div class="wrapper_top">
       <div class="step-detail">
-        <div class="step-number">3</div>
+        <div class="step-number">1</div>
         <div class="step-name">Select Asset</div>
       </div>
       <div class="options">
@@ -48,9 +48,9 @@
       <div class="button-group">
         <button
           class="btn btn-light btn-outline-primary btn-lg"
-          @click="removeClient"
+          @click="cancelSelection"
         >
-          Remove Connection
+          Cancel
         </button>
         <button
           class="btn btn-primary btn-lg btn-icon"
@@ -88,8 +88,8 @@ export default {
   },
   methods: {
     getAssetIcon,
-    removeClient () {
-      this.$emit('on-remove-client')
+    cancelSelection () {
+      this.$emit('on-cancel-select-asset')
     },
     selectAsset (asset) {
       this.$emit('on-select-asset', asset)

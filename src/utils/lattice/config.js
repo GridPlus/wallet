@@ -12,12 +12,12 @@ export const LATTICE_BITCOIN_OPTIONS = [
 ]
 
 export const LATTICE_OPTIONS = [
-  // {
-  //   name: 'ETH',
-  //   label: 'ETH',
-  //   types: ['ethereum_lattice'],
-  //   chain: 'ethereum'
-  // },
+  {
+    name: 'ETH',
+    label: 'ETH',
+    types: ['ethereum_lattice'],
+    chain: 'ethereum'
+  },
   {
     name: 'BTC',
     label: 'BTC',

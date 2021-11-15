@@ -42,12 +42,15 @@ import {
 } from '@/utils/ledger-bridge-provider'
 import { ChainId } from '@liquality/cryptoassets'
 
+import { BitcoinLatticeProvider } from '@liquality/bitcoin-lattice-provider'
+import { EthereumLatticeProvider } from '@liquality/ethereum-lattice-provider'
+
 import { isERC20 } from '@/utils/asset'
 import cryptoassets from '@/utils/cryptoassets'
 import buildConfig from '../../build.config'
 import { ChainNetworks } from '@/utils/networks'
 
-function createBtcClient (network, mnemonic, accountType, derivationPath) {
+function createBtcClient (state, network, mnemonic, accountType, derivationPath) {
   const isTestnet = network === 'testnet'
   const bitcoinNetwork = ChainNetworks.bitcoin[network]
   const esploraApi = buildConfig.exploraApis[network]
@@ -58,7 +61,17 @@ function createBtcClient (network, mnemonic, accountType, derivationPath) {
     { batchUrl: batchEsploraApi, url: esploraApi, network: bitcoinNetwork, numberOfBlockConfirmation: 2 }
   ))
 
-  if (accountType.includes('bitcoin_ledger')) {
+  if (accountType.includes('bitcoin_lattice')) {
+    btcClient.addProvider(
+      new BitcoinLatticeProvider({
+        pairingCodeProvider: (input) => '',
+        derivationPath: derivationPath,
+        deviceID: state.lattice.clientInfo.deviceID,
+        devicePassword: state.lattice.clientInfo.deviceID,
+        network: network
+      })
+    )
+  } else if (accountType.includes('bitcoin_ledger')) {
     const option = LEDGER_BITCOIN_OPTIONS.find(o => o.name === accountType)
     const { addressType } = option
     const bitcoinLedgerApp = new BitcoinLedgerBridgeApp(network, ChainId.Bitcoin)
@@ -86,6 +99,7 @@ function createBtcClient (network, mnemonic, accountType, derivationPath) {
 }
 
 function createEthereumClient (
+  state,
   asset,
   network,
   ethereumNetwork,
@@ -99,7 +113,22 @@ function createEthereumClient (
   const ethClient = new Client()
   ethClient.addProvider(new EthereumRpcProvider({ uri: rpcApi }))
 
-  if (accountType === 'ethereum_ledger' || accountType === 'rsk_ledger') {
+  if (accountType == 'ethereum_lattice') {
+    const assetData = cryptoassets[asset]
+    const chainData = chains?.[assetData.chain]
+    const { nativeAsset } = chainData || 'ETH'
+    const deviceID = state.lattice.clientInfo.deviceID
+    const password = state.lattice.clientInfo.deviceID
+    console.log(`${deviceID}; ${password}`)
+    const lattice = new EthereumLatticeProvider({
+      pairingCodeProvider: (input) => '',
+      derivationPath: derivationPath,
+      deviceID: state.lattice.clientInfo.deviceID,
+      devicePassword: state.lattice.clientInfo.deviceID,
+      network: ethereumNetwork
+    })
+    ethClient.addProvider(lattice)
+  } else if (accountType === 'ethereum_ledger' || accountType === 'rsk_ledger') {
     const assetData = cryptoassets[asset]
     const ethereumLedgerApp = new EthereumLedgerBridgeApp(network, assetData.chain || ChainId.Ethereum)
     const ledger = new EthereumLedgerBridgeProvider(
@@ -255,10 +284,10 @@ function createTerraClient (network, mnemonic, baseDerivationPath, asset) {
   return terraClient
 }
 
-export const createClient = (asset, network, mnemonic, accountType, derivationPath) => {
+export const createClient = (state, asset, network, mnemonic, accountType, derivationPath) => {
   const assetData = cryptoassets[asset]
 
-  if (assetData.chain === 'bitcoin') return createBtcClient(network, mnemonic, accountType, derivationPath)
+  if (assetData.chain === 'bitcoin') return createBtcClient(state, network, mnemonic, accountType, derivationPath)
   if (assetData.chain === 'rsk') return createRskClient(asset, network, mnemonic, accountType, derivationPath)
   if (assetData.chain === 'bsc') return createBSCClient(asset, network, mnemonic, derivationPath)
   if (assetData.chain === 'polygon') return createPolygonClient(asset, network, mnemonic, derivationPath)
@@ -267,5 +296,5 @@ export const createClient = (asset, network, mnemonic, accountType, derivationPa
   if (assetData?.chain === 'solana') return createSolanaClient(network, mnemonic, derivationPath)
   if (assetData.chain === 'terra') return createTerraClient(network, mnemonic, derivationPath, asset)
 
-  return createEthClient(asset, network, mnemonic, accountType, derivationPath)
+  return createEthClient(state, asset, network, mnemonic, accountType, derivationPath)
 }

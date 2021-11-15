@@ -31,7 +31,7 @@
             <template v-if="!needsRetry">Connect</template>
             <template v-else>Retry</template>
           </button>
-        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -40,7 +40,14 @@
 import SpinnerIcon from '@/assets/icons/spinner.svg'
 
 export default {
-  props: ['loading', 'needsRetry', 'errMsg', 'client', 'inputCode'],
+  props: ['needsRetry', 'client'],
+  data () {
+    return {
+      errMsg: '',
+      inputCode: '',
+      loading: false
+    }
+  },
   components: {
     SpinnerIcon
   },

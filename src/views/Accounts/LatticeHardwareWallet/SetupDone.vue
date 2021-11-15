@@ -49,7 +49,13 @@
 import SpinnerIcon from '@/assets/icons/spinner.svg'
 
 export default {
-  props: ['loading', 'client', 'errMsg'],
+  props: ['client'],
+  data () {
+    return {
+      errMsg: '',
+      loading: false
+    }
+  },
   components: {
     SpinnerIcon
   },

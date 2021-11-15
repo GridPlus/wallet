@@ -8,31 +8,36 @@
     <Loading          v-if="loading"
                       @on-cancel-loading="handleRemoveClient"
     />
-    <GetLatticeClient v-else-if="!latticeClientInfo()"
-                      @on-client-info="handleClientInfo"
-    />
-    <PairWithLattice  v-else-if="currentStep === 'pairWithLattice'"
-                      :client="client"
-                      @on-pairing-success="handlePairingSuccess"
-                      @on-remove-client="handleRemoveClient"
-    />
     <SelectAsset      v-else-if="currentStep === 'selectLatticeAsset'"
                       :selected-asset="selectedAsset"
-                      @on-select-asset="handleSetLatticeAsset"
-                      @on-confirm-asset="handleConfirmLatticeAsset"
-                      @on-remove-client="handleRemoveClient"
+                      @on-cancel-select-asset="didCancelSelectAsset"
+                      @on-select-asset="didUpdateAsset"
+                      @on-confirm-asset="didConfirmAsset"
     />
-    <SetupDone        v-else
+    <SetupDone        v-else-if="currentStep === 'latticeIsPaired'"
                       :client="client"
                       @on-remove-client="handleRemoveClient"
                       @on-refresh-connection="handleRefreshConnection"
                       @on-go-to-wallet="handleGoToWallet"
     />
+    <LatticeClientInfoModal :open="clientInfoModalIsOpen" 
+                         @close="clientInfoModalDidClose"
+                         @submit="connectToLattice"
+    />
+    <LatticePairingModal :open="pairingModalIsOpen" 
+                         :client="client"
+                         @close="pairingModalDidClose"
+                         @submit="pairingModalDidPair"
+    />
+    <LatticeDeviceErrorModal :open="deviceErrorModalIsOpen"
+                             @close="deviceErrorModalDidClose"
+                             :error="deviceError" 
+    />
   </div>
 </template>
 
 <script>
-import { mapActions, mapState } from 'vuex'
+import { mapActions, mapState, mapGetters } from 'vuex'
 import { Client } from 'gridplus-sdk'
 import NavBar from '@/components/NavBar'
 import GetLatticeClient from './GetLatticeClient'
@@ -40,9 +45,20 @@ import Loading from './Loading'
 import PairWithLattice from './PairWithLattice'
 import SelectAsset from './SelectAsset'
 import SetupDone from './SetupDone'
+import LatticePairingModal from '@/components/LatticePairingModal'
+import LatticeClientInfoModal from '@/components/LatticeClientInfoModal'
+import LatticeDeviceErrorModal from '@/components/LatticeDeviceErrorModal'
 import { getNextAccountColor } from '@/utils/accounts'
 import { getDerivationPath } from '@/utils/derivationPath'
 import { LATTICE_OPTIONS } from '@/utils/lattice'
+import cryptoassets from '@/utils/cryptoassets'
+import { BitcoinNetworks } from '@liquality/bitcoin-networks'
+import { EthereumNetworks } from '@liquality/ethereum-networks'
+
+import { BitcoinLatticeProvider } from '@liquality/bitcoin-lattice-provider'
+import { EthereumLatticeProvider } from '@liquality/ethereum-lattice-provider'
+import add from 'date-fns/fp/add/index'
+import { format } from 'date-fns/fp'
 
 // We will only support one account per current for now
 const FIXED_ACCOUNT_IDX = 0
@@ -54,42 +70,203 @@ export default {
     Loading,
     PairWithLattice,
     SelectAsset,
-    SetupDone
+    SetupDone,
+    LatticeClientInfoModal,
+    LatticeDeviceErrorModal,
+    LatticePairingModal
   },
   data () {
     return {
-      currentStep: null,
+      currentStep: "selectLatticeAsset",
       selectedAsset: LATTICE_OPTIONS[0],
+      pairingCode: null,
+      // 'client' may need to be set prior to 
+      // displaying the 'LatticePairingModel'.
+      //
+      // See: 'connectToLattice'.
       client: null,
-      loading: false
+      clientInfo: null,
+      loading: false,
+      deviceError: null,
+      clientInfoModalIsOpen: false,
+      deviceErrorModalIsOpen: false,
+      pairingModalIsOpen: false
     }
   },
   computed: {
     ...mapState([
       'activeNetwork',
-      'activeWalletId'
-    ])
+      'activeWalletId',
+      'enabledAssets'
+    ]),
   },
   methods: {
     ...mapActions([
-      // 'changeActiveWalletId',
       'createAccount',
       'clearLatticeData',
       'setLatticeClientInfo',
       'setLatticeAsset',
-      'latticeDebugMsg',
       'removeAccount',
       'updateAccountBalance'
-      // ^^^ Even though 'updateAccountBlaance' should add the 'assets' + 'balances' keys to 'account'
-      // (thus, fixing missing UI) it is not being called currently. See `_createAccountIfNeeded`.
     ]),
     ...mapState({
       latticeClientInfo: state => state.lattice.clientInfo,
-      latticeAsset: state => state.lattice.asset,
+      latticeAsset: state => state.lattice.asset, // MARKED FOR DELETION
       accounts: state => state.accounts
     }),
+    async hasClientInfo() {
+      const clientInfo = await this.latticeClientInfo()
+      if (!clientInfo || !clientInfo.name || !clientInfo.deviceID || !clientInfo.password) {
+        return false
+      }
+      return true
+    },
+    async handleRefreshConnection() {
+      const clientInfo = await this.latticeClientInfo()
+      await this.connectToLattice(clientInfo.deviceID, clientInfo.password)
+      /* Prior code
+      | // Remove saved accounts from the store
+      | await this._removeSavedAccounts()
+      | // Setup a new client and re-connect to the Lattice
+      | // We should already be paired so this should be automatic
+      | await this._connect(this.latticeClientInfo())
+      | // Recreate the account
+      | await this._createAccountIfNeeded()
+      */
+    },
+    displayErrorModal(error) {
+      this.deviceError = error
+      this.deviceErrorModalIsOpen = true
+    },
+    deviceErrorModalDidClose() {
+      this.deviceErrorModalIsOpen = false
+      this.deviceError = null
+    },
+    didCancelSelectAsset() {
+      this.$router.replace('/wallet')
+    },
+    didUpdateAsset(asset) {
+      this.selectedAsset = asset
+    },
+    didConfirmAsset(asset) {
+      return new Promise(async (resolved, rejected) => {
+        this.loading = true
+        const hasClientInfo = await this.hasClientInfo()
+        if (hasClientInfo === false) {
+          await this.clearLatticeData()
+          this.clientInfoModalIsOpen = true
+        } else {
+          await this.handleRefreshConnection()
+          this.didUpdateAsset(asset)
 
-    // Component callback handlers
+          //-----------------------------------------------------------------------
+          // GATHER ASSET KEYS
+          //-----------------------------------------------------------------------
+          const assetKeys = this.enabledAssets[this.activeNetwork]?.[this.activeWalletId] || []
+
+          //-----------------------------------------------------------------------
+          // DETERMINE AVAILABLE ASSETS
+          //-----------------------------------------------------------------------
+          if (this.selectedAsset.name === "ETH") {
+            const ethAssets = assetKeys.filter(asset => cryptoassets[asset].chain === 'ethereum')
+            const ethAccounts = await this._ethereumAccounts(ethAssets, EthereumNetworks.ethereum_mainnet)
+            try {
+              for (var i = 0; i < ethAccounts.length; i++) {
+                console.log(`[A]: ${i}; ${JSON.stringify(ethAccounts[i], null, 2)}`)
+                const account = await this._createAccount(ethAccounts[i], this.activeNetwork)
+              }
+            } catch (e) {
+              return rejected(e)
+            }
+          } else if (this.selectedAsset.name === "BTC") {
+            const isTestnet = this.activeNetwork === 'testnet'
+            const btcAssets = assetKeys.filter(asset => cryptoassets[asset].chain === 'bitcoin')
+            const btcAccounts = await this._bitcoinAccounts(btcAssets, isTestnet ? BitcoinNetworks.bitcoin_testnet : BitcoinNetworks.bitcoin)
+            try {
+              for (var i = 0; i < btcAccounts.length; i++) {
+                const account = await this._createAccount(btcAccounts[i], this.activeNetwork)
+              }
+            } catch (e) {
+              return rejected(e)
+            }
+          }
+        }
+        this.loading = false
+        resolved()
+      })
+    },
+    clientInfoModalDidClose() {
+      return new Promise(async (resolved) => {
+        this.clientInfoModalIsOpen = false
+        await this.clearLatticeData()
+        resolved()
+      })
+    },
+    //---------------------------------------------------------------------------
+    // See: 'LatticeClientInfoModal.vue'
+    //---------------------------------------------------------------------------
+    connectToLattice(deviceID, password) {
+      return new Promise(async (resolved) => {
+        //-----------------------------------------------------------------------
+        // PREPARE THE UI
+        //-----------------------------------------------------------------------
+        this.clientInfoModalIsOpen = false
+        this.loading = true
+
+        //-----------------------------------------------------------------------
+        // UPDATE 'CLIENTINFO' (IMPORTANT)
+        //-----------------------------------------------------------------------
+        const { client, name } = this._createNewClient(deviceID, password)
+        this.client = client
+        this.clientInfo = { name, deviceID, password }
+
+        //-----------------------------------------------------------------------
+        // PAIR CLIENT (IF NECESSARY)
+        //-----------------------------------------------------------------------
+        try {
+          const isClientPaired = await this.isClientPaired(client, deviceID)
+          if (!isClientPaired) {
+            this.pairingModalIsOpen = true
+          } else {
+            this.pairingModalDidPair(client)
+          }
+        } catch(err) {
+          this.client = null
+          this.displayErrorModal(err)
+        } finally {
+          this.loading = false
+          resolved()
+        }
+      })
+    },
+    pairingModalDidClose(error) {
+      this.pairingModalIsOpen = false
+      if (error) {
+        console.error(error)
+      }
+    },
+    async pairingModalDidPair(pairingCode) {
+      this.pairingModalIsOpen = false
+      this.currentStep = "latticeIsPaired"
+      const clientInfo = {
+        name: this.clientInfo.name,
+        deviceID: this.clientInfo.deviceID,
+        password: this.clientInfo.password
+      }
+      await this.setLatticeClientInfo({clientInfo})
+    },
+    isClientPaired(client, deviceID) {
+      return new Promise((resolved, rejected) => {
+        client.connect(deviceID, (err, isPaired) => {
+          if (err) {
+            rejected(err)
+          }
+          else {
+            resolved(!isPaired ? false : isPaired)
+          }
+        })
+      })
+    },
     async handleClientInfo ({ clientInfo }) {
       await this.setLatticeClientInfo({ clientInfo })
       await this._connect(clientInfo)
@@ -98,13 +275,8 @@ export default {
       this.currentStep = 'selectLatticeAsset'
     },
     async handleRemoveClient () {
-      this.currentStep = null
-      // Remove saved accounts from the store
-      await this._removeSavedAccounts()
-      // Clear all state data associated with the Lattice and its client
       await this.clearLatticeData()
-      // Clear the client locally
-      this.client = null
+      this.currentStep = "selectLatticeAsset"
     },
     async handleConfirmLatticeAsset () {
       this.setLatticeAsset({ asset: this.selectedAsset })
@@ -115,245 +287,153 @@ export default {
     handleSetLatticeAsset (asset) {
       this.selectedAsset = asset
     },
-    async handleRefreshConnection () {
-      // Remove saved accounts from the store
-      await this._removeSavedAccounts()
-      // Setup a new client and re-connect to the Lattice
-      // We should already be paired so this should be automatic
-      await this._connect(this.latticeClientInfo())
-      // Recreate the account
-      await this._createAccountIfNeeded()
-    },
     async handleGoToWallet () {
       this.$router.replace('/wallet')
     },
+    // ------------------------------------------------------------------------------
+    // HELPER WALLET FUNCTIONS
+    // ------------------------------------------------------------------------------
+    _walletAssetsEnabledForChain(chain) {
+      const assetKeys = this.enabledAssets[this.activeNetwork]?.[this.activeWalletId] || []
+      const ethAssets = assetKeys.filter(asset => cryptoassets[asset].chain === chain)
+      return ethAssets
+    },
+    _walletAccountsEnabled(filteredBy) {
+      const accounts = this.accounts()[this.activeWalletId][this.activeNetwork].filter(account => account.enabled)
+      if (!filteredBy) {
+        return accounts
+      }
+      return filteredBy
+        .flatMap(filter => accounts.filter(filter))
+        .reduce((previous, current) => {
+          return current
+        })
+    },
+    // ------------------------------------------------------------------------------
+    // BITCOIN ASSETS
+    // ------------------------------------------------------------------------------
+    _bitcoinAssets () {
+      return this._walletAssetsEnabledForChain('bitcoin')
+    },
+    // ------------------------------------------------------------------------------
+    // BITCOIN ACCOUNTS
+    // ------------------------------------------------------------------------------
+    async _bitcoinAccounts (assets = this._bitcoinAssets(), network) {
+      const { deviceID, password } = this.clientInfo
+      const provider = new BitcoinLatticeProvider(
+        {
+          pairingCodeProvider: (input) => '', /* Ignored */
+          derivationPath: `m/49'/${network.coinType}'/0'/0/0`,
+          deviceID: deviceID,
+          devicePassword: password,
+          network: network
+        }
+      )
+      const addresses = await provider.getAddresses()
+      return addresses.map((account, index) => {
+        return {
+          name: `Lattice BTC: #${index + 1}`,
+          alias: '',
+          chain: 'bitcoin',
+          addresses: [account.address],
+          assets: assets,
+          index: index,
+          type: this.selectedAsset.types[0],
+          enabled: true,
+          derivationPath: account.derivationPath,
+          color: getNextAccountColor('bitcoin', index)
+        }
+      })
+    },
+    // ------------------------------------------------------------------------------
+    // ETHEREUM ASSETS
+    // ------------------------------------------------------------------------------
+    _ethereumAssets () {
+      return this._walletAssetsEnabledForChain('ethereum')
+    },
+    // ------------------------------------------------------------------------------
+    // ETHEREUM ACCOUNTS
+    // ------------------------------------------------------------------------------
+    async _ethereumAccounts (assets = this._ethereumAssets(), network) {
+      const { deviceID, password } = this.clientInfo
+      const provider = new EthereumLatticeProvider(
+        {
+          pairingCodeProvider: (input) => '', /* Ignored */
+          derivationPath: `m/44'/${network.coinType}'/0'/0/0`,
+          deviceID: deviceID,
+          devicePassword: password,
+          network: network
+        }
+      )
+      const addresses = await provider.getAddresses()
+      return addresses.map((account, index) => {
+        return {
+          name: `Lattice ETH: #${index + 1}`,
+          alias: '',
+          chain: 'ethereum',
+          addresses: [account.address],
+          assets: assets,
+          index: index,
+          type: this.selectedAsset.types[0],
+          enabled: true,
+          derivationPath: account.derivationPath,
+          color: getNextAccountColor('ethereum', index)
+        }
+      })
+    },
+    // ------------------------------------------------------------------------------
+    // CREATE ACCOUNT
+    // ------------------------------------------------------------------------------
+    async _createAccount (account, network) {
+      const compareETHAddresses = ((addrs1, addrs2) => {
+        const formatAddress = ((addr) => {
+          return addr.slice(0, 2) === "0x" ? 
+            (addr.slice(2)).toLowerCase() : 
+            (addr.toLowerCase())
+        })
+        const formatted1 = addrs1.map(formatAddress)
+        const formatted2 = addrs2.map(formatAddress)
 
-    // Internal state-altering functions
-    async _connect (clientInfo) {
-      return new Promise((resolve, reject) => {
-        try {
-          // Given client info, create (or rehydrate) a Lattice client and then attempt to connect
-          // to the user's device
-          this.loading = true
-          const ReactCrypto = require('gridplus-react-crypto').default
-          const crypto = new ReactCrypto()
-          const { name, deviceID, password } = clientInfo
-          const privKey = crypto.createHash('sha256').update(`${deviceID}${password}${name}`).digest()
-          this.client = new Client({ name, crypto, privKey })
-          this.client.connect(clientInfo.deviceID, (err, isPaired) => {
-            this.loading = false
-            if (err) {
-              throw new Error(err)
-            }
-            // If we are not paired yet, move the UI to that component. The user's device should be
-            // displaying a pairing secret.
-            if (!isPaired) {
-              this.currentStep = 'pairWithLattice'
-              return resolve()
-            }
-            // If we are paired, determine if the user has already selected an asset
-            if (!this.latticeAsset()) {
-              this.currentStep = 'selectLatticeAsset'
-            }
-            return resolve()
-          })
-        } catch (err) {
-          // If there is an error connecting, clear the client info
-          // TODO: Convert this into a component that displays the error and lets the user
-          // either retry the connection or wipe the credentials and go through the setup process again
-          this.clearLatticeData()
-          return reject(new Error('Failed to connect'))
-        }
+        console.log(`${JSON.stringify(formatted1)}`)
+        console.log(`${JSON.stringify(formatted2)}`)
+        return formatted1.sort().join(',') === formatted2.sort().join(',')
       })
-    },
-    // Add an account to state if none exists. This account will be associated with the active
-    // wallet UID, asset type, and the current network (mainnet or testnet)
-    async _createAccountIfNeeded () {
-      return new Promise((resolve, reject) => {
-        if (!this.latticeAsset() || !this.client) {
-          return reject(new Error('Connection not set up.'))
-        } else if (this._hasExistingAccount()) {
-          this.latticeDebugMsg('has existing account. exiting')
-          return resolve()
-        }
-        // Get options and config needed to create the account
-        const options = this._getWalletOptions()
-        const walletUID = this._getCurrentWalletUID()
-        // --------------------------------------------------------------------------------
-        // TODO: Ledger appends its accounts to the active wallet. We should do the same.
-        //       None the less, omitting this check is not a permanent fix.
-        // --------------------------------------------------------------------------------
-        //
-        // Check on the existing wallet accounts to see if this account has already been
-        // saved to state (if so we will return early)
-        //
-        /*
-        const existingAccounts = this._getExistingAccounts()
-        if (existingAccounts.length > 0) {
-          this.changeActiveWalletId({ walletId: walletUID })
-          return resolve()
-        }
-        */
-        // --------------------------------------------------------------------------------
-        // If this is a new account, get the first address and save the data
-        const startPath = getDerivationPath(options.chain, this.activeNetwork, 0, options.type)
-        this.loading = true
-        this._getAddress(startPath)
-          .then((firstAddress) => {
-            this.loading = false
-            // If this is an unrecognized address, re-create the account with it as the only address
-            // ALSO:
-            // 'assets' + 'balances' should be added via: `updateAccountBalance`.
-            const account = {
-              addresses: [firstAddress],
-              alias: '',
-              assets: [
-                options.name
-              ],
-              balances: {
-                [options.name]: 0
-              },
-              chain: options.chain,
-              color: getNextAccountColor(options.chain, 1),
-              id: walletUID,
-              index: FIXED_ACCOUNT_IDX,
-              name: `Lattice ${options.name}`,
-              type: options.type
-            }
-            // If this wallet UID *does* exist in state, update it
-            // NOTE: Switching wallets isn't necessary. Ledger appends its accounts to active wallet.
-            this.createAccount({
-              walletId: this.activeWalletId,
-              network: this.activeNetwork,
-              account
-            })
-
-            // TODO: Fetch Account Balances
-            /*
-            this.updateAccountBalance({
-              network: this.activeNetwork,
-              walletId: this.activeWalletId,
-              accountId: walletUID
-            })
-            */
-            return resolve()
-          })
-          .catch((err) => {
-            return reject(err)
-          })
+      const existingAccounts = this._walletAccountsEnabled([
+        (existingAccount => existingAccount.type === account.type),
+        (existingAccount => existingAccount.derivationPath === account.derivationPath),
+        (existingAccount => compareETHAddresses(existingAccount.addresses, account.addresses)),
+      ])
+      console.log(`[B]: ${JSON.stringify(existingAccounts, null, 2)}`)
+      if (existingAccounts.length > 0) {
+        return account
+      }
+      console.log(`[C]: Creating account....`)
+      const createdAccount = await this.createAccount({
+        network: network,
+        walletId: this.activeWalletId,
+        account
       })
-    },
-    // Get an address from the Lattice given a derviation path string (e.g. m/44'/60'/0'/0/0)
-    async _getAddress (path) {
-      return new Promise((resolve, reject) => {
-        if (!this.client) {
-          return reject(new Error('No client present'))
-        }
-        if (!this.client.getActiveWallet()) {
-          return reject(new Error('Client has no active wallet'))
-        }
-        const pathIndices = []
-        path.split('/').forEach((i) => {
-          const hardIdx = i.indexOf('\'')
-          const isHard = hardIdx > -1
-          const iNum = isHard ? i.slice(0, hardIdx) : i
-          if (!isNaN(Number(iNum))) {
-            pathIndices.push(isHard ? Number(iNum) + 0x80000000 : Number(iNum))
-          }
-        })
-        const req = { startPath: pathIndices, n: 1, skipCache: true }
-        this.client.getAddresses(req, (err, res) => {
-          if (err) {
-            return reject(new Error(err.message))
-          } else if (res.length < 1) {
-            return reject(new Error('No addresses returned from device'))
-          }
-          return resolve(res[0])
-        })
+      await this.updateAccountBalance({
+        network: network,
+        walletId: this.activeWalletId,
+        accountId: createdAccount.id
       })
+      return createdAccount
     },
-    async _removeSavedAccounts () {
-      return new Promise((resolve) => {
-        const existingAccounts = this._getExistingAccounts()
-        existingAccounts.forEach((account) => {
-          this.removeAccount({ walletId: account.walletId, id: account.id, network: this.activeNetwork })
-        })
-        return resolve()
-      })
-    },
-    // Get all accounts associated with this wallet, network, and asset
-    // This should only return either 0 or 1 account
-    _getExistingAccounts () {
-      if (!this.client) {
-        return []
-      }
-      const options = this._getWalletOptions()
-      if (!options) {
-        return []
-      }
-      const existingWallet = this.accounts()[this.activeWalletId]
-      const existingAccounts = []
-      if (existingWallet && Object.keys(existingWallet[this.activeNetwork]).length > 0) {
-        existingWallet[this.activeNetwork].forEach((account) => {
-          if (account.type === options.type && account.chain === options.chain && account.index === FIXED_ACCOUNT_IDX) {
-            existingAccounts.push(account)
-          }
-        })
-      }
-      return existingAccounts
-    },
-    // Determine if we have an account already for the currently selected asset and walletUID
-    _hasExistingAccount () {
-      const currentAsset = this.latticeAsset()
-      const walletAccounts = this._getExistingAccounts()
-      let match = false
-      walletAccounts.forEach((account) => {
-        if (account.chain === currentAsset.chain && account.name.indexOf(currentAsset.name) > -1) {
-          match = true
-        }
-      })
-      return match
-    },
-    // Get the options associated with this account (asset, network, etc)
-    _getWalletOptions () {
-      const options = LATTICE_OPTIONS.filter((x) => { return x.name === this.selectedAsset.name })
-      if (options.length < 1) {
-        return null
-      }
-      const option = options[0]
-      // This should be dynamic but I don't know how they allow the user to change the version type
-      const accountType = option.types[0]
-      return {
-        name: option.name,
-        chain: option.chain,
-        type: accountType
-      }
-    },
-    // Determine the wallet UID of the current active wallet (i.e. what is being used in the Lattice right now)
-    _getCurrentWalletUID () {
-      if (!this.client) {
-        return null
-      }
-      const wallet = this.client.getActiveWallet()
-      if (!wallet) {
-        return null
-      }
-      return wallet.uid.toString('hex')
+    _createNewClient(deviceID, password) {
+      //-----------------------------------------------------------------------
+      // CREATE A CLIENT
+      //-----------------------------------------------------------------------
+      const name = "Liquality"
+      const client = (() => {
+        const ReactCrypto = require('gridplus-react-crypto').default
+        const crypto = new ReactCrypto()
+        const privKey = crypto.createHash('sha256').update(`${deviceID}${password}${name}`).digest()
+        return new Client({ name, crypto, privKey })
+      })()
+      return { client: client, name: name }
     }
   },
-
-  // Lifecycle hooks
-  async mounted () {
-    // Once we mount, get the data we need to create a new instance of the Lattice client
-    const clientInfo = this.latticeClientInfo()
-    const { name, deviceID, password } = clientInfo
-    if (!name || !deviceID || !password) {
-      await this.clearLatticeData()
-      return
-    }
-    await this._connect(clientInfo)
-    await this._createAccountIfNeeded()
-  }
 }
 </script>
 <style lang="scss">
