@@ -113,9 +113,24 @@ export default {
       return true
     },
     async handleRefreshConnection () {
+      try {
+        const accountsToRemove = this._getFilteredExistingAccounts(account => !this.selectedAsset.types.indexOf(account.type))
+        console.log(`MARKED FOR REMOVAL: ${JSON.stringify(accountsToRemove, null, 2)}`)
+        for (var ri = 0; ri < accountsToRemove.length; ri++) {
+          const { walletId, id } = accountsToRemove[ri]
+          const network = this.activeNetwork
+          console.log(`${JSON.stringify(walletId, null, 2)}; ${JSON.stringify(id, null, 2)}; ${JSON.stringify(this.activeNetwork, null, 2)}`)
+          await this.removeAccount(walletId, id, network)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+
+      /*
       const clientInfo = await this.latticeClientInfo()
       await this.connectToLattice(clientInfo.deviceID, clientInfo.password)
       await this.tryAddAccount()
+      */
       /* Prior code
       | // Remove saved accounts from the store
       | await this._removeSavedAccounts()
@@ -244,22 +259,12 @@ export default {
         })
       })
     },
-    async handleClientInfo ({ clientInfo }) {
-      await this.setLatticeClientInfo({ clientInfo })
-      await this._connect(clientInfo)
-    },
     async handlePairingSuccess () {
       this.currentStep = 'latticeIsPaired'
     },
     async handleRemoveClient () {
       await this.clearLatticeData()
       this.currentStep = 'selectLatticeAsset'
-    },
-    async handleConfirmLatticeAsset () {
-      this.setLatticeAsset({ asset: this.selectedAsset })
-      this.currentStep = null
-      await this._connect(this.latticeClientInfo())
-      await this._createAccountIfNeeded()
     },
     handleSetLatticeAsset (asset) {
       this.selectedAsset = asset
@@ -404,6 +409,10 @@ export default {
       })()
       return { client: client, name: name }
     }
+  },
+
+  async mounted() {
+    await this.handleRefreshConnection()
   }
 }
 </script>
