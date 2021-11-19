@@ -36,7 +36,7 @@ export default {
   },
   data () {
     return {
-      pairingCode: "",
+      pairingCode: ''
     }
   },
   props: {
@@ -54,14 +54,14 @@ export default {
       const pairingCode = this.pairingCode.toUpperCase()
       this.client.pair(pairingCode, (err, isActive) => {
         if (err || !isActive) {
-          this.onClose(err || new Error("No active wallet found!"))
+          this.onClose(err || new Error('No active wallet found!'))
         } else {
           this.$emit('submit', pairingCode)
         }
       })
     },
     onClose (err) {
-      this.pairingCode = ""
+      this.pairingCode = ''
       this.$emit('close', err)
     }
   }

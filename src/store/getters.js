@@ -56,7 +56,6 @@ export default {
     }) => {
       const account = accountId ? getters.accountItem(accountId) : null
       const _accountType = account?.type || accountType
-      const _accountIndex = account?.index || accountIndex
       const { chain } = getters.cryptoassets[asset]
       let derivationPath
       // when we ask for ledger accounts from the ledger device we don't have the derivation path

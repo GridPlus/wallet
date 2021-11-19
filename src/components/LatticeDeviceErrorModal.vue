@@ -20,12 +20,10 @@
 
 <script>
 import Modal from '@/components/Modal'
-import LedgerIcon from '@/assets/icons/ledger_icon.svg'
 
 export default {
   components: {
-    Modal,
-    LedgerIcon
+    Modal
   },
   props: {
     open: {
@@ -34,7 +32,7 @@ export default {
     },
     error: {
       type: String,
-      default: null 
+      default: null
     }
   },
   methods: {

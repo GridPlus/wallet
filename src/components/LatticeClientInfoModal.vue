@@ -43,8 +43,8 @@ export default {
   },
   data () {
     return {
-      deviceID: "",
-      password: ""
+      deviceID: '',
+      password: ''
     }
   },
   props: {
@@ -58,11 +58,11 @@ export default {
       this.$emit('submit', this.deviceID, this.password)
     },
     onClose () {
-      this.deviceID = ""
-      this.password = ""
+      this.deviceID = ''
+      this.password = ''
       this.$emit('close')
     }
-  },
+  }
 }
 </script>
 

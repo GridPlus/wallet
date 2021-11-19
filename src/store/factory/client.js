@@ -113,10 +113,7 @@ function createEthereumClient (
   const ethClient = new Client()
   ethClient.addProvider(new EthereumRpcProvider({ uri: rpcApi }))
 
-  if (accountType == 'ethereum_lattice') {
-    const assetData = cryptoassets[asset]
-    const chainData = chains?.[assetData.chain]
-    const { nativeAsset } = chainData || 'ETH'
+  if (accountType === 'ethereum_lattice') {
     const deviceID = state.lattice.clientInfo.deviceID
     const password = state.lattice.clientInfo.deviceID
     console.log(`${deviceID}; ${password}`)

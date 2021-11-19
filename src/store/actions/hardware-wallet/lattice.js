@@ -14,13 +14,13 @@ export const latticeDebugMsg = async ({ commit }, msg) => {
   console.log('lattice msg', msg)
 }
 
-export const getLatticeAccounts = async (
-  { getters },
-  { network, walletId, asset, accountType, startingIndex, numAccounts }
-) => {
-  const { client, networkAccounts } = getters
-  const { chain } = assets[asset]
-  const result = []
+// export const getLatticeAccounts = async (
+//   { getters },
+//   { network, walletId, asset, accountType, startingIndex, numAccounts }
+// ) => {
+//   const { client, networkAccounts } = getters
+//   const { chain } = assets[asset]
+//   const result = []
 
-  return results
-}
+//   return results
+// }
