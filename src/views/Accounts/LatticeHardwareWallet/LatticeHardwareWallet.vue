@@ -75,7 +75,8 @@ export default {
       //
       // See: 'connectToLattice'.
       client: null,
-      clientInfo: null,
+      // `tmpClientInfo` is just needed while pairing. Client info is persisted in the store.
+      tmpClientInfo: null,
       loading: false,
       deviceError: null,
       clientInfoModalIsOpen: false,
@@ -114,6 +115,7 @@ export default {
     async handleRefreshConnection () {
       const clientInfo = await this.latticeClientInfo()
       await this.connectToLattice(clientInfo.deviceID, clientInfo.password)
+      await this.tryAddAccount()
       /* Prior code
       | // Remove saved accounts from the store
       | await this._removeSavedAccounts()
@@ -139,17 +141,18 @@ export default {
       this.selectedAsset = asset
     },
     async didConfirmAsset (asset) {
+      this.didUpdateAsset(asset)
+      await this.tryAddAccount()
+      this.currentStep = 'latticeIsPaired'
+    },
+    async tryAddAccount () {
       this.loading = true
-      console.log('checking onclient info')
       const hasClientInfo = await this.hasClientInfo()
-      console.log('hasClientInfo', hasClientInfo)
+
       if (hasClientInfo === false) {
         await this.clearLatticeData()
         this.clientInfoModalIsOpen = true
       } else {
-        await this.handleRefreshConnection()
-        this.didUpdateAsset(asset)
-
         // -----------------------------------------------------------------------
         // GATHER ASSET KEYS
         // -----------------------------------------------------------------------
@@ -194,17 +197,21 @@ export default {
       // -----------------------------------------------------------------------
       const { client, name } = this._createNewClient(deviceID, password)
       this.client = client
-      this.clientInfo = { name, deviceID, password }
-
+      const clientInfo = { name, deviceID, password }
+      this.tmpClientInfo = clientInfo
       // -----------------------------------------------------------------------
       // PAIR CLIENT (IF NECESSARY)
       // -----------------------------------------------------------------------
       try {
         const isClientPaired = await this.isClientPaired(client, deviceID)
         if (!isClientPaired) {
+          // If we are not paired, set a flag to make the pairing component show
           this.pairingModalIsOpen = true
         } else {
-          this.pairingModalDidPair(client)
+          // If we are already paired, move credentials into the store and try
+          // to add an account for the current asset
+          await this.setLatticeClientInfo({ clientInfo })
+          await this.tryAddAccount()
         }
       } catch (err) {
         this.client = null
@@ -219,15 +226,12 @@ export default {
         console.error(error)
       }
     },
-    async pairingModalDidPair (pairingCode) {
+    async pairingModalDidPair () {
       this.pairingModalIsOpen = false
       this.currentStep = 'latticeIsPaired'
-      const clientInfo = {
-        name: this.clientInfo.name,
-        deviceID: this.clientInfo.deviceID,
-        password: this.clientInfo.password
-      }
-      await this.setLatticeClientInfo({ clientInfo })
+      await this.setLatticeClientInfo({ clientInfo: this.tmpClientInfo })
+      // Try to add an account for the currently selected asset
+      await this.tryAddAccount()
     },
     isClientPaired (client, deviceID) {
       return new Promise((resolve, reject) => {
@@ -245,7 +249,7 @@ export default {
       await this._connect(clientInfo)
     },
     async handlePairingSuccess () {
-      this.currentStep = 'selectLatticeAsset'
+      this.currentStep = 'latticeIsPaired'
     },
     async handleRemoveClient () {
       await this.clearLatticeData()
@@ -285,7 +289,8 @@ export default {
     // BITCOIN ACCOUNTS
     // ------------------------------------------------------------------------------
     async _bitcoinAccounts (assets = this._bitcoinAssets(), network) {
-      const { deviceID, password } = this.clientInfo
+      const clientInfo = await this.latticeClientInfo()
+      const { deviceID, password } = clientInfo
       const provider = new BitcoinLatticeProvider(
         {
           pairingCodeProvider: (input) => '', /* Ignored */
@@ -321,7 +326,8 @@ export default {
     // ETHEREUM ACCOUNTS
     // ------------------------------------------------------------------------------
     async _ethereumAccounts (assets = this._ethereumAssets(), network) {
-      const { deviceID, password } = this.clientInfo
+      const clientInfo = await this.latticeClientInfo()
+      const { deviceID, password } = clientInfo
       const provider = new EthereumLatticeProvider(
         {
           pairingCodeProvider: (input) => '', /* Ignored */
