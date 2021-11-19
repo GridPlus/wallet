@@ -154,26 +154,11 @@ export default {
         this.clientInfoModalIsOpen = true
       } else {
         // -----------------------------------------------------------------------
-        // GATHER ASSET KEYS
-        // -----------------------------------------------------------------------
-        const assetKeys = this.enabledAssets[this.activeNetwork]?.[this.activeWalletId] || []
-
-        // -----------------------------------------------------------------------
         // DETERMINE AVAILABLE ASSETS
         // -----------------------------------------------------------------------
-        if (this.selectedAsset.name === 'ETH') {
-          const ethAssets = assetKeys.filter(asset => cryptoassets[asset].chain === 'ethereum')
-          const ethAccounts = await this._ethereumAccounts(ethAssets, EthereumNetworks.ethereum_mainnet)
-          for (var ei = 0; ei < ethAccounts.length; ei++) {
-            await this._createAccount(ethAccounts[ei], this.activeNetwork)
-          }
-        } else if (this.selectedAsset.name === 'BTC') {
-          const isTestnet = this.activeNetwork === 'testnet'
-          const btcAssets = assetKeys.filter(asset => cryptoassets[asset].chain === 'bitcoin')
-          const btcAccounts = await this._bitcoinAccounts(btcAssets, isTestnet ? BitcoinNetworks.bitcoin_testnet : BitcoinNetworks.bitcoin)
-          for (var bi = 0; bi < btcAccounts.length; bi++) {
-            await this._createAccount(btcAccounts[bi], this.activeNetwork)
-          }
+        const accounts = await this._getLatticeAccounts()
+        for (var i = 0; i < accounts.length; i++) {
+          await this._createAccount(accounts[i], this.activeNetwork)
         }
       }
       this.loading = false
@@ -252,8 +237,29 @@ export default {
       this.currentStep = 'latticeIsPaired'
     },
     async handleRemoveClient () {
+      this.loading = true
+      // Find the accounts to remove. We need to cross reference Lattice accounts with
+      // the global accounts from storage because only the global accounts have the `id`
+      // which we need to reference in order to remove
+      const latticeAccounts = await this._getLatticeAccounts()
+      const globalAccounts = this._getGlobalAccounts()
+      for (let li = 0; li < latticeAccounts.length; li++) {
+        for (let gi = 0; gi < globalAccounts.length; gi++) {
+          const ga = globalAccounts[gi]
+          const la = latticeAccounts[li]
+          if (ga.name === la.name && ga.derivationPath === la.derivationPath && ga.type === la.type) {
+            // Remove the account from app state
+            await this.removeAccount({
+              walletId: this.activeWalletId,
+              network: this.activeNetwork,
+              id: ga.id
+            })
+          }
+        }
+      }
       await this.clearLatticeData()
       this.currentStep = 'selectLatticeAsset'
+      this.loading = false
     },
     async handleConfirmLatticeAsset () {
       this.setLatticeAsset({ asset: this.selectedAsset })
@@ -275,9 +281,31 @@ export default {
       const ethAssets = assetKeys.filter(asset => cryptoassets[asset].chain === chain)
       return ethAssets
     },
+    _getGlobalAccounts () {
+      if (!this.activeWalletId || !this.activeNetwork) {
+        return []
+      }
+      return this.accounts()[this.activeWalletId][this.activeNetwork]
+    },
     _getFilteredExistingAccounts (filteredBy) {
-      const accounts = this.accounts()[this.activeWalletId][this.activeNetwork].filter(account => account.enabled)
+      const accounts = this._getGlobalAccounts().filter(account => account.enabled)
       return accounts.filter(filteredBy)
+    },
+    async _getLatticeAccounts () {
+      if (!this.selectedAsset || !this.selectedAsset.name || !this.activeWalletId) {
+        return []
+      }
+      const assetKeys = this.enabledAssets[this.activeNetwork]?.[this.activeWalletId] || []
+      if (this.selectedAsset.name === 'ETH') {
+        const ethAssets = assetKeys.filter(asset => cryptoassets[asset].chain === 'ethereum')
+        return await this._ethereumAccounts(ethAssets, EthereumNetworks.ethereum_mainnet)
+      } else if (this.selectedAsset.name === 'BTC') {
+        const isTestnet = this.activeNetwork === 'testnet'
+        const btcAssets = assetKeys.filter(asset => cryptoassets[asset].chain === 'bitcoin')
+        return await this._bitcoinAccounts(btcAssets, isTestnet ? BitcoinNetworks.bitcoin_testnet : BitcoinNetworks.bitcoin)
+      } else {
+        return []
+      }
     },
     // ------------------------------------------------------------------------------
     // BITCOIN ASSETS
