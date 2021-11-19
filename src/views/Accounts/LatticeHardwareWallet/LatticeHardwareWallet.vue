@@ -271,16 +271,9 @@ export default {
       const ethAssets = assetKeys.filter(asset => cryptoassets[asset].chain === chain)
       return ethAssets
     },
-    _walletAccountsEnabled (filteredBy) {
+    _getFilteredExistingAccounts (filteredBy) {
       const accounts = this.accounts()[this.activeWalletId][this.activeNetwork].filter(account => account.enabled)
-      if (!filteredBy) {
-        return accounts
-      }
-      return filteredBy
-        .flatMap(filter => accounts.filter(filter))
-        .reduce((previous, current) => {
-          return current
-        })
+      return accounts.filter(filteredBy)
     },
     // ------------------------------------------------------------------------------
     // BITCOIN ASSETS
@@ -369,15 +362,16 @@ export default {
         const formatted2 = addrs2.map(formatAddress)
         return formatted1.sort().join(',') === formatted2.sort().join(',')
       }
-
-      const foundAccount = this._walletAccountsEnabled([
-        existingAccount => existingAccount.type === account.type,
-        existingAccount => existingAccount.derivationPath === account.derivationPath,
-        existingAccount => existingAccount.chain === account.chain,
-        existingAccount => compareAddresses(existingAccount.addresses, account.addresses)
-      ])
-      if (foundAccount) {
-        return foundAccount
+      const filter = (x) => {
+        return (
+          (x.derivationPath === account.derivationPath) &&
+          (x.chain === account.chain) &&
+          (compareAddresses(x.addresses, account.addresses))
+        )
+      }
+      const existingAccounts = this._getFilteredExistingAccounts(filter)
+      if (existingAccounts.length > 0) {
+        return existingAccounts[0]
       }
       const createdAccount = await this.createAccount({
         network: network,
